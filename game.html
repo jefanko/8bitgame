@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-Bit Dragon Slayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #f0f0f0;
+        }
+
+        #game-container {
+            border: 2px solid #4a4a4a;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            cursor: default;
+        }
+
+        #nameInputContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #666;
+            z-index: 100;
+            text-align: center;
+            display: none;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        #nameInputContainer label {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #eee;
+        }
+
+        #nameInputField {
+            padding: 12px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            border: 2px solid #888;
+            background-color: #222;
+            color: #fff;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            width: 280px;
+            text-align: center;
+        }
+
+        #nameSubmitButton {
+            padding: 12px 25px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            background-color: #008800;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #nameSubmitButton:hover {
+            background-color: #00bb00;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 flex flex-col justify-center items-center min-h-screen p-4">
+    <div class="mb-4 text-center">
+        <h1 class="text-3xl font-bold text-white" style="font-family: 'Press Start 2P', cursive;">8-Bit Dragon Slayer
+        </h1>
+        <p id="instructions" class="text-gray-400" style="font-family: 'Press Start 2P', cursive; font-size: 0.75rem;">
+            Loading...</p>
+    </div>
+    <div id="game-container">
+        <div id="nameInputContainer">
+            <label for="nameInputField">Enter Your Name, Warrior:</label>
+            <input type="text" id="nameInputField" maxlength="12">
+            <button id="nameSubmitButton">Continue</button>
+        </div>
+    </div>
+    <div id="debug-info" class="mt-4 text-xs text-gray-500" style="font-family: 'Press Start 2P', cursive;"></div>
+
+    <script>
+        // --- SVG Asset Generation ---
+        function createPixelArtSvg(framesData, frameWidth, frameHeight) {
+            const svgFrames = framesData.map(drawFrameFn => {
+                const svgContent = `<svg width="${frameWidth}" height="${frameHeight}" xmlns="http://www.w3.org/2000/svg">${drawFrameFn(frameWidth, frameHeight)}</svg>`;
+                return svgContent;
+            });
+            const totalWidth = frameWidth * framesData.length;
+            let combinedSvg = `<svg width="${totalWidth}" height="${frameHeight}" xmlns="http://www.w3.org/2000/svg">`;
+            svgFrames.forEach((frameSvg, index) => {
+                const innerContentMatch = frameSvg.match(/<svg[^>]*>([\s\S]*?)<\/svg>/);
+                if (innerContentMatch && innerContentMatch[1]) {
+                    combinedSvg += `<g transform="translate(${index * frameWidth}, 0)">${innerContentMatch[1]}</g>`;
+                }
+            });
+            combinedSvg += `</svg>`;
+            return `data:image/svg+xml;base64,${btoa(combinedSvg)}`;
+        }
+
+        const warriorFrameWidth = 48;
+        const warriorFrameHeight = 64;
+        const warriorFrames = [ /* ... warrior frames from previous version ... */
+            (w, h) => `<rect x="16" y="6" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="18" width="20" height="6" fill="#909090"/> <rect x="20" y="19" width="8" height="4" fill="#333"/> <rect x="12" y="24" width="24" height="20" fill="#006400"/> <rect x="16" y="26" width="16" height="16" fill="#008000"/> <rect x="10" y="26" width="6" height="14" fill="#707070"/> <rect x="32" y="26" width="6" height="14" fill="#707070"/> <rect x="18" y="44" width="12" height="16" fill="#4a2a00"/> <rect x="12" y="40" width="4" height="20" fill="#888888"/> <rect x="13" y="38" width="2" height="4" fill="#666666"/> `,
+            (w, h) => `<rect x="16" y="7" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="19" width="20" height="6" fill="#909090"/> <rect x="20" y="20" width="8" height="4" fill="#333"/> <rect x="12" y="25" width="24" height="20" fill="#006400"/> <rect x="16" y="27" width="16" height="16" fill="#008000"/> <rect x="10" y="27" width="6" height="14" fill="#707070"/> <rect x="32" y="27" width="6" height="14" fill="#707070"/> <rect x="18" y="45" width="12" height="16" fill="#4a2a00"/> <rect x="12" y="41" width="4" height="20" fill="#888888"/> <rect x="13" y="39" width="2" height="4" fill="#666666"/> `,
+            (w, h) => `<rect x="16" y="6" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="18" width="20" height="6" fill="#909090"/> <rect x="20" y="19" width="8" height="4" fill="#333"/> <rect x="12" y="24" width="24" height="20" fill="#006400"/> <rect x="16" y="26" width="16" height="16" fill="#008000"/> <rect x="8" y="25" width="6" height="14" fill="#707070" transform="rotate(-10 11 32)"/> <rect x="34" y="27" width="6" height="14" fill="#707070" transform="rotate(5 37 34)"/> <rect x="16" y="44" width="8" height="16" fill="#4a2a00"/> <rect x="24" y="46" width="8" height="14" fill="#4a2a00"/> <rect x="10" y="38" width="4" height="20" fill="#888888"/> <rect x="11" y="36" width="2" height="4" fill="#666666"/>`,
+            (w, h) => `<rect x="16" y="7" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="19" width="20" height="6" fill="#909090"/> <rect x="20" y="20" width="8" height="4" fill="#333"/> <rect x="12" y="25" width="24" height="20" fill="#006400"/> <rect x="16" y="27" width="16" height="16" fill="#008000"/> <rect x="10" y="26" width="6" height="14" fill="#707070"/> <rect x="32" y="26" width="6" height="14" fill="#707070"/> <rect x="18" y="45" width="12" height="16" fill="#4a2a00"/> <rect x="11" y="40" width="4" height="20" fill="#888888"/> <rect x="12" y="38" width="2" height="4" fill="#666666"/>`,
+            (w, h) => `<rect x="16" y="6" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="18" width="20" height="6" fill="#909090"/> <rect x="20" y="19" width="8" height="4" fill="#333"/> <rect x="12" y="24" width="24" height="20" fill="#006400"/> <rect x="16" y="26" width="16" height="16" fill="#008000"/> <rect x="34" y="25" width="6" height="14" fill="#707070" transform="rotate(-10 37 32)"/> <rect x="8" y="27" width="6" height="14" fill="#707070" transform="rotate(5 11 34)"/> <rect x="24" y="44" width="8" height="16" fill="#4a2a00"/> <rect x="16" y="46" width="8" height="14" fill="#4a2a00"/> <rect x="13" y="38" width="4" height="20" fill="#888888"/> <rect x="14" y="36" width="2" height="4" fill="#666666"/>`,
+            (w, h) => `<rect x="16" y="7" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="19" width="20" height="6" fill="#909090"/> <rect x="20" y="20" width="8" height="4" fill="#333"/> <rect x="12" y="25" width="24" height="20" fill="#006400"/> <rect x="16" y="27" width="16" height="16" fill="#008000"/> <rect x="10" y="26" width="6" height="14" fill="#707070"/> <rect x="32" y="26" width="6" height="14" fill="#707070"/> <rect x="18" y="45" width="12" height="16" fill="#4a2a00"/> <rect x="12" y="40" width="4" height="20" fill="#888888"/> <rect x="13" y="38" width="2" height="4" fill="#666666"/>`,
+            (w, h) => `<rect x="16" y="8" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="20" width="20" height="6" fill="#909090"/> <rect x="20" y="21" width="8" height="4" fill="#333"/> <rect x="12" y="26" width="24" height="20" fill="#006400"/> <rect x="16" y="28" width="16" height="16" fill="#008000"/> <rect x="18" y="46" width="12" height="16" fill="#4a2a00"/> <rect x="8" y="18" width="6" height="28" fill="#e0e0e0" transform="rotate(-45 11 32)"/> <rect x="9" y="16" width="4" height="6" fill="#666666" transform="rotate(-45 11 32)"/> `,
+            (w, h) => `<rect x="16" y="8" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="20" width="20" height="6" fill="#909090"/> <rect x="20" y="21" width="8" height="4" fill="#333"/> <rect x="12" y="26" width="24" height="20" fill="#006400"/> <rect x="16" y="28" width="16" height="16" fill="#008000"/> <rect x="18" y="46" width="12" height="16" fill="#4a2a00"/> <rect x="24" y="10" width="6" height="36" fill="#f0f0f0" transform="rotate(15 27 28)"/> <rect x="25" y="8" width="4" height="6" fill="#666666" transform="rotate(15 27 28)"/> `,
+            (w, h) => `<rect x="16" y="8" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="20" width="20" height="6" fill="#909090"/> <rect x="20" y="21" width="8" height="4" fill="#333"/> <rect x="12" y="26" width="24" height="20" fill="#006400"/> <rect x="16" y="28" width="16" height="16" fill="#008000"/> <rect x="18" y="46" width="12" height="16" fill="#4a2a00"/> <rect x="30" y="18" width="6" height="28" fill="#d0d0d0" transform="rotate(75 33 32)"/> <rect x="31" y="16" width="4" height="6" fill="#666666" transform="rotate(75 33 32)"/> `,
+            (w, h) => `<rect x="16" y="7" width="16" height="12" fill="#b0b0b0"/> <rect x="14" y="19" width="20" height="6" fill="#909090"/> <rect x="20" y="20" width="8" height="4" fill="#333"/> <rect x="12" y="25" width="24" height="20" fill="#006400"/> <rect x="16" y="27" width="16" height="16" fill="#008000"/> <rect x="18" y="45" width="12" height="16" fill="#4a2a00"/> <rect x="12" y="40" width="4" height="20" fill="#888888"/> <rect x="13" y="38" width="2" height="4" fill="#666666"/> `,
+            (w, h) => `<rect x="16" y="6" width="16" height="12" fill="#ff8080"/> <rect x="14" y="18" width="20" height="6" fill="#ff6060"/> <rect x="20" y="19" width="8" height="4" fill="#aa0000"/> <rect x="12" y="24" width="24" height="20" fill="#cc0000"/> <rect x="16" y="26" width="16" height="16" fill="#ee0000"/> <rect x="10" y="26" width="6" height="14" fill="#bb0000"/> <rect x="32" y="26" width="6" height="14" fill="#bb0000"/> <rect x="18" y="44" width="12" height="16" fill="#4a2a00"/> <rect x="12" y="40" width="4" height="20" fill="#888888"/> <rect x="13" y="38" width="2" height="4" fill="#666666"/>`,
+            (w, h) => `<rect x="16" y="15" width="16" height="12" fill="#777" transform="rotate(-15 24 21)"/> <rect x="12" y="27" width="24" height="20" fill="#444" transform="rotate(-15 24 37)"/> <rect x="18" y="47" width="12" height="16" fill="#222" transform="rotate(-15 24 55)"/>`,
+            (w, h) => `<rect x="10" y="30" width="16" height="12" fill="#555" transform="rotate(-45 18 36)"/> <rect x="4" y="42" width="24" height="20" fill="#333" transform="rotate(-45 16 52)"/> <rect x="0" y="50" width="12" height="10" fill="#111" transform="rotate(-45 6 55)"/>`,
+            (w, h) => `<rect x="8" y="50" width="32" height="8" fill="#222"/> <rect x="12" y="46" width="24" height="6" fill="#444"/> <rect x="20" y="42" width="8" height="4" fill="#777"/> `,
+        ];
+        const warriorSpriteSheetUrl = createPixelArtSvg(warriorFrames, warriorFrameWidth, warriorFrameHeight);
+
+        const dragonFrameWidth = 96;
+        const dragonFrameHeight = 80;
+        const dragonFrames = [ /* ... dragon frames from previous version ... */
+            (w, h) => `<path d="M30 10 C20 0 60 0 50 10 L60 20 L50 30 C60 40 20 40 30 30 Z" fill="#500"/> <rect x="45" y="25" width="30" height="35" fill="#800"/> <rect x="60" y="50" width="25" height="20" fill="#500"/> <path d="M10 20 Q30 0 50 20 T10 60 Z" fill="#a00" transform="translate(0,5)"/> <path d="M86 20 Q66 0 46 20 T86 60 Z" fill="#a00" transform="translate(0,5)"/> <rect x="28" y="12" width="6" height="6" fill="#f80"/> <path d="M70 65 Q80 75 90 60 L70 70 Z" fill="#500"/> `,
+            (w, h) => `<path d="M30 12 C20 2 60 2 50 12 L60 22 L50 32 C60 42 20 42 30 32 Z" fill="#500"/> <rect x="45" y="27" width="30" height="35" fill="#800"/> <rect x="60" y="52" width="25" height="20" fill="#500"/> <path d="M10 25 Q30 5 50 25 T10 65 Z" fill="#a00"/> <path d="M86 25 Q66 5 46 25 T86 65 Z" fill="#a00"/> <rect x="28" y="14" width="6" height="6" fill="#f80"/> <path d="M70 67 Q80 77 90 62 L70 72 Z" fill="#500"/>`,
+            (w, h) => `<path d="M30 10 C20 0 60 0 50 10 L60 20 L50 30 C60 40 20 40 30 30 Z" fill="#500"/> <rect x="45" y="25" width="30" height="35" fill="#800"/> <rect x="60" y="50" width="25" height="20" fill="#500"/> <path d="M10 30 Q30 10 50 30 T10 70 Z" fill="#a00" transform="translate(0,-5)"/> <path d="M86 30 Q66 10 46 30 T86 70 Z" fill="#a00" transform="translate(0,-5)"/> <rect x="28" y="12" width="6" height="6" fill="#f80"/> <path d="M70 65 Q80 75 90 60 L70 70 Z" fill="#500"/>`,
+            (w, h) => `<path d="M30 12 C20 2 60 2 50 12 L60 22 L50 32 C60 42 20 42 30 32 Z" fill="#500"/> <rect x="45" y="27" width="30" height="35" fill="#800"/> <rect x="60" y="52" width="25" height="20" fill="#500"/> <path d="M10 25 Q30 5 50 25 T10 65 Z" fill="#a00"/> <path d="M86 25 Q66 5 46 25 T86 65 Z" fill="#a00"/> <rect x="28" y="14" width="6" height="6" fill="#f80"/> <path d="M70 67 Q80 77 90 62 L70 72 Z" fill="#500"/>`,
+            (w, h) => `<path d="M35 5 C25 -5 65 -5 55 5 L65 15 L55 25 C65 35 25 35 35 25 Z" fill="#600"/> <rect x="48" y="20" width="30" height="38" fill="#900"/> <rect x="60" y="48" width="25" height="22" fill="#600"/> <path d="M15 15 Q35 -5 55 15 T15 55 Z" fill="#b00" transform="translate(-5,0) rotate(-10 30 30)"/> <path d="M81 15 Q61 -5 41 15 T81 55 Z" fill="#b00" transform="translate(5,0) rotate(10 66 30)"/> <rect x="33" y="7" width="6" height="6" fill="#ff0"/> <path d="M70 65 Q80 75 90 60 L70 70 Z" fill="#600"/>`,
+            (w, h) => `<path d="M40 2 C30 -8 70 -8 60 2 L70 12 L60 22 C70 32 30 32 40 22 Z" fill="#700"/> <rect x="25" y="8" width="10" height="8" fill="#ffc107" /> <rect x="50" y="18" width="30" height="40" fill="#a00"/> <rect x="62" y="45" width="25" height="25" fill="#700"/> <path d="M20 10 Q40 -10 60 10 T20 50 Z" fill="#c00" transform="translate(-10,-5) rotate(-20 35 25)"/> <path d="M76 10 Q56 -10 36 10 T76 50 Z" fill="#c00" transform="translate(10,-5) rotate(20 61 25)"/> <rect x="38" y="4" width="6" height="6" fill="#ff0"/> <path d="M70 65 Q80 75 90 60 L70 70 Z" fill="#700"/>`,
+            (w, h) => `<path d="M30 10 C20 0 60 0 50 10 L60 20 L50 30 C60 40 20 40 30 30 Z" fill="#500"/> <rect x="10" y="15" width="25" height="15" fill="#ffa500" /> <ellipse cx="22" cy="22" rx="12" ry="8" fill="#ff0000" /> <rect x="45" y="25" width="30" height="35" fill="#800"/> <rect x="60" y="50" width="25" height="20" fill="#500"/> <path d="M10 20 Q30 0 50 20 T10 60 Z" fill="#a00" transform="translate(0,5)"/> <path d="M86 20 Q66 0 46 20 T86 60 Z" fill="#a00" transform="translate(0,5)"/> <rect x="28" y="12" width="6" height="6" fill="#f80"/> <path d="M70 65 Q80 75 90 60 L70 70 Z" fill="#500"/>`,
+            (w, h) => `<path d="M30 12 C20 2 60 2 50 12 L60 22 L50 32 C60 42 20 42 30 32 Z" fill="#500"/> <rect x="45" y="27" width="30" height="35" fill="#800"/> <rect x="60" y="52" width="25" height="20" fill="#500"/> <path d="M10 25 Q30 5 50 25 T10 65 Z" fill="#a00"/> <path d="M86 25 Q66 5 46 25 T86 65 Z" fill="#a00"/> <rect x="28" y="14" width="6" height="6" fill="#f80"/> <path d="M70 67 Q80 77 90 62 L70 72 Z" fill="#500"/>`,
+            (w, h) => `<path d="M32 15 C22 5 62 5 52 15 L62 25 L52 35 C62 45 22 45 32 35 Z" fill="#ff6666" transform="rotate(5 47 25)"/> <rect x="47" y="28" width="30" height="35" fill="#cc0000"/> <rect x="62" y="53" width="25" height="20" fill="#aa0000"/> <path d="M12 28 Q32 8 52 28 T12 68 Z" fill="#ff8888" transform="translate(0,-3)"/> <path d="M84 28 Q64 8 44 28 T84 68 Z" fill="#ff8888" transform="translate(0,-3)"/> <rect x="30" y="17" width="6" height="6" fill="#ffcc00"/> <path d="M70 67 Q80 77 90 62 L70 72 Z" fill="#aa0000"/>`,
+            (w, h) => `<path d="M30 25 C20 15 60 15 50 25 L60 35 L50 45 C60 55 20 55 30 45 Z" fill="#400" transform="rotate(-15 45 35)"/> <rect x="45" y="40" width="30" height="35" fill="#600" transform="rotate(-15 45 35)"/> <path d="M10 30 Q30 10 50 30 T10 70 Z" fill="#700" transform="rotate(-20 30 50)"/> <path d="M86 30 Q66 10 46 30 T86 70 Z" fill="#700" transform="rotate(20 66 50)"/>`,
+            (w, h) => `<path d="M20 45 C10 35 50 35 40 45 L50 55 L40 65 C50 75 10 75 20 65 Z" fill="#300" transform="translate(10,10) rotate(-30 35 55)"/> <rect x="35" y="50" width="30" height="25" fill="#400" transform="translate(10,10) rotate(-30 35 55)"/> <path d="M5 40 Q25 20 45 40 T5 80 Z" fill="#500" transform="rotate(-45 25 60)"/>`,
+            (w, h) => `<rect x="15" y="60" width="60" height="15" fill="#200"/> <rect x="25" y="50" width="40" height="10" fill="#300"/> <rect x="5" y="55" width="30" height="8" fill="#400" transform="rotate(-10 20 59)"/> <rect x="55" y="55" width="30" height="8" fill="#400" transform="rotate(10 70 59)"/> `,
+            (w, h) => `<rect x="10" y="65" width="70" height="10" fill="#100"/> <rect x="20" y="58" width="50" height="7" fill="#200"/>`,
+        ];
+        const dragonSpriteSheetUrl = createPixelArtSvg(dragonFrames, dragonFrameWidth, dragonFrameHeight);
+
+        const fireballFrameWidth = 16;
+        const fireballFrameHeight = 16;
+        const fireballFrames = [
+            (w, h) => `<circle cx="8" cy="8" r="7" fill="#ffcc00"/><circle cx="8" cy="8" r="4" fill="#ffaa00"/>`,
+            (w, h) => `<circle cx="8" cy="8" r="7" fill="#ffaa00"/><circle cx="8" cy="8" r="4" fill="#ff8800"/>`,
+        ];
+        const fireballSpriteSheetUrl = createPixelArtSvg(fireballFrames, fireballFrameWidth, fireballFrameHeight);
+
+        const princessFrameWidth = 48;
+        const princessFrameHeight = 64;
+        const princessFrames = [
+            // Idle Frame 1
+            (w, h) => `
+                <rect x="18" y="4" width="12" height="10" fill="#ffd700"/> <circle cx="24" cy="6" r="3" fill="#ff4500"/> <rect x="16" y="12" width="16" height="12" fill="#fffacd"/> <path d="M14 22 q 10 -4 20 0 l 2 8 q -12 6 -24 0 l 2 -8 Z" fill="#ffebcd"/> <rect x="20" y="24" width="3" height="3" fill="#4682b4"/> <rect x="25" y="24" width="3" height="3" fill="#4682b4"/> <path d="M12 30 l4 -2 h16 l4 2 v20 q0 10 -12 12 q -12 -2 -12 -12 Z" fill="#add8e6"/> <path d="M8 50 l4 -4 h24 l4 4 v10 h-32 Z" fill="#87ceeb"/> <rect x="16" y="32" width="16" height="8" fill="#ffffff" opacity="0.7"/> `,
+            // Idle Frame 2 (slight movement/sway)
+            (w, h) => `
+                <rect x="18" y="5" width="12" height="10" fill="#ffd700"/> 
+                <circle cx="24" cy="7" r="3" fill="#ff4500"/> 
+                <rect x="16" y="13" width="16" height="12" fill="#fffacd"/> 
+                <path d="M14 23 q 10 -4 20 0 l 2 8 q -12 6 -24 0 l 2 -8 Z" fill="#ffebcd"/> 
+                <rect x="20" y="25" width="3" height="3" fill="#4682b4"/> 
+                <rect x="25" y="25" width="3" height="3" fill="#4682b4"/> 
+                <path d="M11 31 l4 -2 h18 l4 2 v19 q0 10 -13 12 q -13 -2 -13 -12 Z" fill="#add8e6"/> 
+                <path d="M7 50 l4 -4 h26 l4 4 v10 h-34 Z" fill="#87ceeb"/> 
+                <rect x="17" y="33" width="14" height="8" fill="#ffffff" opacity="0.6"/> 
+            `,
+        ];
+        const princessSpriteSheetUrl = createPixelArtSvg(princessFrames, princessFrameWidth, princessFrameHeight);
+
+
+        // --- Game Variables ---
+        let player;
+        let dragon;
+        let princess;
+        let cursors;
+        let swordHitbox;
+        let lastPlayerAttackTime = 0;
+        const playerAttackCooldown = 600;
+        const playerAttackDuration = 350;
+        let playerHealth;
+        let dragonHealth;
+        let playerHealthText;
+        let dragonHealthText;
+        let gameOverText;
+        let narrationTextObject;
+        let fireballs;
+        let gameIsOver = false;
+        let debugText;
+        let currentDifficultySettings;
+        let lastBodyCollisionTime = 0;
+        let playerName = "Warrior";
+        let gameFont = "'Press Start 2P', cursive";
+
+        // --- Music Variables & Setup ---
+        let menuMusicLoop, battleMusicLoop, epilogueMusicLoop;
+        let currentMusicLoop = null;
+        let musicInitialized = false;
+
+        function initTone() {
+            if (Tone.context.state !== 'running') {
+                Tone.start(); // Start audio context on user interaction
+            }
+            musicInitialized = true;
+            console.log("Tone.js Audio Context Initialized.");
+        }
+
+        function playMusic(type) {
+            if (!musicInitialized) return;
+            if (currentMusicLoop) {
+                currentMusicLoop.stop(0);
+                currentMusicLoop.dispose(); // Dispose of the old loop
+                currentMusicLoop = null;
+            }
+            Tone.Transport.cancel(); // Clear previous transport events
+
+            let synth = new Tone.Synth({
+                oscillator: { type: "pulse", width: 0.6 },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.3 }
+            }).toDestination();
+            synth.volume.value = -18; // Quieter music
+
+            let bassSynth = new Tone.MonoSynth({
+                oscillator: { type: "square" },
+                envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 0.5 },
+                filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2, baseFrequency: 100, octaves: 2 }
+            }).toDestination();
+            bassSynth.volume.value = -12;
+
+            if (type === "menu") {
+                const melody = [
+                    { time: "0:0", note: "C4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" },
+                    { time: "1:0", note: "G4", duration: "2n" }, { time: "1:2", note: "E4", duration: "4n" },
+                    { time: "2:0", note: "F4", duration: "4n" }, { time: "2:2", note: "D4", duration: "4n" },
+                    { time: "3:0", note: "C4", duration: "2n" }
+                ];
+                currentMusicLoop = new Tone.Part((time, value) => synth.triggerAttackRelease(value.note, value.duration, time), melody).start(0);
+                currentMusicLoop.loop = true; currentMusicLoop.loopEnd = "4m";
+                Tone.Transport.bpm.value = 90;
+            } else if (type === "battle") {
+                const melody = [
+                    { time: "0:0:0", note: "E5", duration: "8n" }, { time: "0:0:2", note: "D#5", duration: "8n" },
+                    { time: "0:1:0", note: "E5", duration: "8n" }, { time: "0:1:2", note: "B4", duration: "8n" },
+                    { time: "0:2:0", note: "D5", duration: "8n" }, { time: "0:2:2", note: "C5", duration: "8n" },
+                    { time: "0:3:0", note: "A4", duration: "4n" },
+                    { time: "1:0:0", note: "C4", duration: "8n" }, { time: "1:1:0", note: "E4", duration: "8n" },
+                    { time: "1:2:0", note: "A4", duration: "8n" }, { time: "1:3:0", note: "B4", duration: "4n" },
+                ];
+                const bassLine = [
+                    { time: "0:0", note: "A2", duration: "2n" }, { time: "0:2", note: "A2", duration: "2n" },
+                    { time: "1:0", note: "F2", duration: "2n" }, { time: "1:2", note: "F2", duration: "2n" },
+                    { time: "2:0", note: "G2", duration: "2n" }, { time: "2:2", note: "G2", duration: "2n" },
+                    { time: "3:0", note: "E2", duration: "2n" }, { time: "3:2", note: "E2", duration: "2n" },
+                ];
+                currentMusicLoop = new Tone.Part((time, value) => synth.triggerAttackRelease(value.note, value.duration, time), melody).start(0);
+                new Tone.Part((time, value) => bassSynth.triggerAttackRelease(value.note, value.duration, time), bassLine).start(0).loop = true;
+                currentMusicLoop.loop = true; currentMusicLoop.loopEnd = "2m"; // Shorter loop for battle
+                Tone.Transport.bpm.value = 130;
+            } else if (type === "epilogue") {
+                const melody = [
+                    { time: "0:0", note: "G4", duration: "2n." }, { time: "0:3", note: "C5", duration: "4n" },
+                    { time: "1:0", note: "E5", duration: "2n" }, { time: "1:2", note: "D5", duration: "2n" },
+                    { time: "2:0", note: "C5", duration: "1m" }
+                ];
+                currentMusicLoop = new Tone.Part((time, value) => synth.triggerAttackRelease(value.note, value.duration, time), melody).start(0);
+                currentMusicLoop.loop = true; currentMusicLoop.loopEnd = "3m";
+                Tone.Transport.bpm.value = 70;
+            }
+            Tone.Transport.start();
+        }
+
+        function stopMusic() {
+            if (!musicInitialized) return;
+            if (currentMusicLoop) {
+                currentMusicLoop.stop(0);
+                currentMusicLoop.dispose();
+                currentMusicLoop = null;
+            }
+            Tone.Transport.stop();
+            Tone.Transport.cancel(); // Clear all scheduled events
+        }
+
+
+        const difficultySettings = {
+            easy: { name: "Easy", playerHP: 150, dragonHP: 250, dragonFireballDamage: 8, dragonBodyDamage: 10, dragonAttackDelayMin: 3000, dragonAttackDelayMax: 4500, dragonSpeed: 70, dragonBodyDamageCooldown: 1500 },
+            normal: { name: "Normal", playerHP: 100, dragonHP: 350, dragonFireballDamage: 12, dragonBodyDamage: 15, dragonAttackDelayMin: 2500, dragonAttackDelayMax: 4000, dragonSpeed: 90, dragonBodyDamageCooldown: 1000 },
+            hard: { name: "Hard", playerHP: 80, dragonHP: 500, dragonFireballDamage: 18, dragonBodyDamage: 20, dragonAttackDelayMin: 1500, dragonAttackDelayMax: 3000, dragonSpeed: 110, dragonBodyDamageCooldown: 750 }
+        };
+
+        function createButton(scene, x, y, text, callback) {
+            const button = scene.add.text(x, y, text, {
+                fontSize: '16px',
+                fill: '#fff',
+                backgroundColor: '#333',
+                padding: { x: 15, y: 8 },
+                fontFamily: gameFont,
+                align: 'center'
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+            button.on('pointerover', () => button.setStyle({ fill: '#ffdd00', backgroundColor: '#555' }));
+            button.on('pointerout', () => button.setStyle({ fill: '#fff', backgroundColor: '#333' }));
+            button.on('pointerdown', callback);
+            return button;
+        }
+
+        class PreloadScene extends Phaser.Scene {
+            constructor() { super('PreloadScene'); }
+            preload() {
+                document.getElementById('instructions').textContent = "Loading Assets...";
+                this.load.spritesheet('warrior', warriorSpriteSheetUrl, { frameWidth: warriorFrameWidth, frameHeight: warriorFrameHeight });
+                this.load.spritesheet('dragon', dragonSpriteSheetUrl, { frameWidth: dragonFrameWidth, frameHeight: dragonFrameHeight });
+                this.load.spritesheet('fireball', fireballSpriteSheetUrl, { frameWidth: fireballFrameWidth, frameHeight: fireballFrameHeight });
+                this.load.spritesheet('princess', princessSpriteSheetUrl, { frameWidth: princessFrameWidth, frameHeight: princessFrameHeight });
+
+                // Generate grass texture
+                const grassTextureKey = 'grassBG';
+                if (!this.textures.exists(grassTextureKey)) { // Prevent re-generation on scene restart
+                    let gfx = this.add.graphics();
+                    gfx.fillStyle(0x103c10, 1); // Darker base green
+                    gfx.fillRect(0, 0, 64, 64);
+                    gfx.fillStyle(0x206820, 1); // Lighter green tufts
+                    for (let i = 0; i < 15; i++) { // More tufts
+                        gfx.fillRect(Phaser.Math.Between(0, 60), Phaser.Math.Between(0, 60), Phaser.Math.Between(2, 5), Phaser.Math.Between(2, 5));
+                    }
+                    gfx.fillStyle(0x002c00, 0.5); // Shadowy patches
+                    for (let i = 0; i < 5; i++) {
+                        gfx.fillCircle(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), Phaser.Math.Between(5, 10));
+                    }
+                    gfx.generateTexture(grassTextureKey, 64, 64);
+                    gfx.destroy();
+                }
+            }
+            create() { this.scene.start('TitleScene'); }
+        }
+
+        class TitleScene extends Phaser.Scene {
+            constructor() { super('TitleScene'); }
+            create() {
+                document.getElementById('instructions').textContent = "Welcome, Brave Warrior!";
+                this.add.text(this.cameras.main.width / 2, 150, 'Dragon Slayer', { fontSize: '32px', fill: '#fff', fontFamily: gameFont }).setOrigin(0.5);
+                createButton(this, this.cameras.main.width / 2, 300, 'Start Game', () => {
+                    if (!musicInitialized) initTone(); // Initialize Tone.js on first user interaction
+                    playMusic("menu");
+                    this.scene.start('NameInputScene');
+                });
+                createButton(this, this.cameras.main.width / 2, 400, 'Exit', () => {
+                    stopMusic();
+                    document.getElementById('instructions').textContent = "Thanks for playing! Refresh to start over.";
+                });
+            }
+        }
+
+        class NameInputScene extends Phaser.Scene {
+            constructor() { super('NameInputScene'); }
+            preload() { if (musicInitialized && (!currentMusicLoop || currentMusicLoop.name !== "menu")) playMusic("menu"); }
+            create() {
+                document.getElementById('instructions').textContent = "Forge Your Legend!";
+                const nameInputContainer = document.getElementById('nameInputContainer');
+                const nameInputField = document.getElementById('nameInputField');
+                const nameSubmitButton = document.getElementById('nameSubmitButton');
+
+                if (!nameInputContainer || !nameInputField || !nameSubmitButton) {
+                    this.scene.start('TitleScene'); return;
+                }
+
+                nameInputContainer.style.display = 'block';
+                nameInputField.value = playerName;
+                nameInputField.focus();
+
+                const submitNameHandler = () => {
+                    const enteredName = nameInputField.value.trim();
+                    playerName = enteredName || "Warrior";
+                    nameInputContainer.style.display = 'none';
+                    nameInputField.removeEventListener('keypress', enterKeyHandler);
+                    const currentSubmitButton = document.getElementById('nameSubmitButton');
+                    if (currentSubmitButton) {
+                        const newButton = currentSubmitButton.cloneNode(true);
+                        currentSubmitButton.parentNode.replaceChild(newButton, currentSubmitButton);
+                    }
+                    this.scene.start('DifficultySelectScene', { playerName: playerName });
+                };
+
+                const enterKeyHandler = (event) => { if (event.key === 'Enter') submitNameHandler(); };
+
+                const currentSubmitButton = document.getElementById('nameSubmitButton');
+                const newClonedSubmitButton = currentSubmitButton.cloneNode(true);
+                currentSubmitButton.parentNode.replaceChild(newClonedSubmitButton, currentSubmitButton);
+                newClonedSubmitButton.addEventListener('click', submitNameHandler);
+                nameInputField.addEventListener('keypress', enterKeyHandler);
+            }
+            shutdown() {
+                const nameInputContainer = document.getElementById('nameInputContainer');
+                if (nameInputContainer) nameInputContainer.style.display = 'none';
+            }
+        }
+
+        class DifficultySelectScene extends Phaser.Scene {
+            constructor() { super('DifficultySelectScene'); }
+            init(data) { playerName = data.playerName || "Warrior"; }
+            preload() { if (musicInitialized && (!currentMusicLoop || currentMusicLoop.name !== "menu")) playMusic("menu"); }
+            create() {
+                document.getElementById('instructions').textContent = `Greetings, ${playerName}! Choose Your Fate.`;
+                this.add.text(this.cameras.main.width / 2, 100, 'Select Difficulty', { fontSize: '20px', fill: '#fff', fontFamily: gameFont }).setOrigin(0.5);
+                const buttonYStart = 220; const buttonSpacing = 70;
+                Object.keys(difficultySettings).forEach((key, index) => {
+                    createButton(this, this.cameras.main.width / 2, buttonYStart + (index * buttonSpacing), difficultySettings[key].name,
+                        () => this.scene.start('NarrationScene', { difficulty: key, playerName: playerName })
+                    );
+                });
+            }
+        }
+
+        class NarrationScene extends Phaser.Scene {
+            constructor() { super('NarrationScene'); }
+            narrationLines = []; currentLineIndex = 0; narrationText; promptText;
+            init(data) {
+                this.difficulty = data.difficulty; this.playerName = data.playerName;
+                this.narrationLines = [
+                    `In the shadowed lands of Eldoria, a terror reigns...`,
+                    `The fearsome Dragon, Ignis, has seized the beloved Princess Aurelia!`,
+                    `Her desperate cries echo from the Dragon's Peak.`,
+                    `${this.playerName}, the kingdom's last hope, you must embark on this perilous quest.`,
+                    `Steel your heart, sharpen your blade...`,
+                    `For the fate of Aurelia and Eldoria rests upon your shoulders!`
+                ];
+                this.currentLineIndex = 0;
+            }
+            preload() { if (musicInitialized && (!currentMusicLoop || currentMusicLoop.name !== "menu")) playMusic("menu"); }
+            create() {
+                document.getElementById('instructions').textContent = "The Tale Unfolds...";
+                this.cameras.main.setBackgroundColor('#111111');
+                this.narrationText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 50, this.narrationLines[this.currentLineIndex], { fontSize: '14px', fill: '#e0e0e0', fontFamily: gameFont, align: 'center', wordWrap: { width: this.cameras.main.width - 100 } }).setOrigin(0.5);
+                this.promptText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 80, '[Press SPACE to Continue]', { fontSize: '12px', fill: '#888', fontFamily: gameFont, align: 'center' }).setOrigin(0.5);
+                this.tweens.add({ targets: this.promptText, alpha: 0.3, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+                this.input.keyboard.on('keydown-SPACE', this.advanceNarration, this);
+            }
+            advanceNarration() {
+                this.currentLineIndex++;
+                if (this.currentLineIndex < this.narrationLines.length) this.narrationText.setText(this.narrationLines[this.currentLineIndex]);
+                else { this.input.keyboard.off('keydown-SPACE', this.advanceNarration, this); this.scene.start('GameScene', { difficulty: this.difficulty, playerName: this.playerName }); }
+            }
+            shutdown() { if (this.input && this.input.keyboard) this.input.keyboard.off('keydown-SPACE', this.advanceNarration, this); }
+        }
+
+        class EpilogueScene extends Phaser.Scene {
+            constructor() { super('EpilogueScene'); }
+            epilogueLines = []; currentLineIndex = 0; epilogueText; promptText;
+            init(data) {
+                this.playerName = data.playerName || "Warrior";
+                this.epilogueLines = [
+                    `With Ignis vanquished, ${this.playerName} reached the Dragon's spire.`,
+                    `There, amidst riches and ruin, stood Princess Aurelia, safe at last.`,
+                    `Her eyes, filled with gratitude, met the hero's gaze.`,
+                    `Peace returned to Eldoria, songs of ${this.playerName}'s valor echoing through the land.`,
+                    `And the brave warrior and the fair princess...?`,
+                    `Well, that, perhaps, is a tale for another day... THE END.`
+                ];
+                this.currentLineIndex = 0;
+            }
+            preload() { if (musicInitialized) playMusic("epilogue"); }
+            create() {
+                document.getElementById('instructions').textContent = "A Hero's Welcome!";
+                this.cameras.main.setBackgroundColor('#2d2d2d');
+                const warriorEp = this.add.sprite(this.cameras.main.width / 2 - 60, this.cameras.main.height / 2 + 50, 'warrior');
+                if (!this.anims.exists('ep_warrior_idle')) this.anims.create({ key: 'ep_warrior_idle', frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 1 }), frameRate: 3, repeat: -1 });
+                warriorEp.play('ep_warrior_idle').setScale(2);
+                const princessEp = this.add.sprite(this.cameras.main.width / 2 + 60, this.cameras.main.height / 2 + 50, 'princess');
+                if (!this.anims.exists('ep_princess_idle')) this.anims.create({ key: 'ep_princess_idle', frames: this.anims.generateFrameNumbers('princess', { start: 0, end: 1 }), frameRate: 2, repeat: -1 });
+                princessEp.play('ep_princess_idle').setScale(1.8).setFlipX(true);
+                this.epilogueText = this.add.text(this.cameras.main.width / 2, 150, this.epilogueLines[this.currentLineIndex], { fontSize: '14px', fill: '#e0e0e0', fontFamily: gameFont, align: 'center', wordWrap: { width: this.cameras.main.width - 100 } }).setOrigin(0.5);
+                this.promptText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 150, '[Press SPACE to Continue]', { fontSize: '12px', fill: '#888', fontFamily: gameFont, align: 'center' }).setOrigin(0.5);
+                this.tweens.add({ targets: this.promptText, alpha: 0.3, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+                this.input.keyboard.on('keydown-SPACE', this.advanceEpilogue, this);
+            }
+            advanceEpilogue() {
+                this.currentLineIndex++;
+                if (this.currentLineIndex < this.epilogueLines.length) this.epilogueText.setText(this.epilogueLines[this.currentLineIndex]);
+                else { this.input.keyboard.off('keydown-SPACE', this.advanceEpilogue, this); if (this.promptText) this.promptText.destroy(); createButton(this, this.cameras.main.width / 2, this.cameras.main.height - 80, 'Play Again?', () => { stopMusic(); this.scene.start('TitleScene'); }); }
+            }
+            shutdown() { if (this.input && this.input.keyboard) this.input.keyboard.off('keydown-SPACE', this.advanceEpilogue, this); }
+        }
+
+        class GameScene extends Phaser.Scene {
+            constructor() { super('GameScene'); }
+            playableAreaTopY = 60;
+            background; // To hold the tileSprite
+
+            init(data) {
+                const difficultyKey = data.difficulty;
+                playerName = data.playerName;
+                currentDifficultySettings = difficultySettings[difficultyKey];
+                playerHealth = currentDifficultySettings.playerHP;
+                dragonHealth = currentDifficultySettings.dragonHP;
+                gameIsOver = false; lastPlayerAttackTime = 0; lastBodyCollisionTime = 0; swordHitbox = null;
+                document.getElementById('instructions').textContent = "Arrow Keys: Move | Spacebar: Attack";
+            }
+            preload() { if (musicInitialized) playMusic("battle"); }
+
+            create() {
+                // Add background first
+                this.background = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'grassBG').setOrigin(0, 0);
+
+                player = this.physics.add.sprite(100, this.cameras.main.height / 2, 'warrior');
+                player.setCollideWorldBounds(true).setBounce(0.1);
+                player.body.setSize(warriorFrameWidth * 0.45, warriorFrameHeight * 0.7).setOffset(warriorFrameWidth * 0.27, warriorFrameHeight * 0.2);
+
+                if (!this.anims.exists('player_idle')) {
+                    this.anims.create({ key: 'player_idle', frames: this.anims.generateFrameNumbers('warrior', { start: 0, end: 1 }), frameRate: 3, repeat: -1 });
+                    this.anims.create({ key: 'player_walk', frames: this.anims.generateFrameNumbers('warrior', { start: 2, end: 5 }), frameRate: 8, repeat: -1 });
+                    this.anims.create({ key: 'player_attack', frames: this.anims.generateFrameNumbers('warrior', { start: 6, end: 9 }), frameRate: 12, repeat: 0 });
+                    this.anims.create({ key: 'player_hurt', frames: this.anims.generateFrameNumbers('warrior', { start: 10, end: 10 }), frameRate: 1, repeat: 0 });
+                    this.anims.create({ key: 'player_death', frames: this.anims.generateFrameNumbers('warrior', { start: 11, end: 13 }), frameRate: 4, repeat: 0 });
+                }
+                player.play('player_idle');
+
+                player.on('animationcomplete-player_attack', () => { if (player.active && !gameIsOver) this.determinePlayerNextAnimation(); });
+                player.on('animationcomplete-player_hurt', () => { if (player.active && !gameIsOver) this.determinePlayerNextAnimation(); });
+
+                dragon = this.physics.add.sprite(this.cameras.main.width - 150, this.cameras.main.height / 2, 'dragon');
+                dragon.setCollideWorldBounds(true).setImmovable(true);
+                dragon.body.setSize(dragonFrameWidth * 0.55, dragonFrameHeight * 0.6).setOffset(dragonFrameWidth * 0.22, dragonFrameHeight * 0.25);
+
+                if (!this.anims.exists('dragon_idle')) {
+                    this.anims.create({ key: 'dragon_idle', frames: this.anims.generateFrameNumbers('dragon', { start: 0, end: 3 }), frameRate: 4, repeat: -1 });
+                    this.anims.create({ key: 'dragon_move', frames: this.anims.generateFrameNumbers('dragon', { start: 0, end: 3 }), frameRate: 6, repeat: -1 });
+                    this.anims.create({ key: 'dragon_attack', frames: this.anims.generateFrameNumbers('dragon', { start: 4, end: 7 }), frameRate: 6, repeat: 0 });
+                    this.anims.create({ key: 'dragon_hurt', frames: this.anims.generateFrameNumbers('dragon', { start: 8, end: 8 }), frameRate: 1, repeat: 0 });
+                    this.anims.create({ key: 'dragon_death', frames: this.anims.generateFrameNumbers('dragon', { start: 9, end: 12 }), frameRate: 5, repeat: 0 });
+                    this.anims.create({ key: 'fireball_anim', frames: this.anims.generateFrameNumbers('fireball', { start: 0, end: 1 }), frameRate: 5, repeat: -1 });
+                }
+                dragon.play('dragon_idle');
+                dragon.setFlipX(true);
+
+                dragon.on('animationcomplete-dragon_attack', () => {
+                    if (dragon.active && !gameIsOver) {
+                        const fireball = fireballs.get();
+                        if (fireball) {
+                            fireball.enableBody(true, dragon.x + (dragon.flipX ? -45 : 45), dragon.y - 10, true, true);
+                            fireball.play('fireball_anim', true);
+                            if (player.active) this.physics.moveToObject(fireball, player, 280);
+                            else fireball.setVelocityX(dragon.flipX ? -280 : 280);
+                            fireball.body.setSize(fireballFrameWidth * 0.8, fireballFrameHeight * 0.8);
+                        }
+                        this.determineDragonNextAnimation();
+                    }
+                });
+                dragon.on('animationcomplete-dragon_hurt', () => { if (dragon.active && !gameIsOver) this.determineDragonNextAnimation(); });
+
+                fireballs = this.physics.add.group({ defaultKey: 'fireball', maxSize: 5, runChildUpdate: true });
+                this.dragonAttackTimer = this.time.addEvent({ delay: Phaser.Math.Between(currentDifficultySettings.dragonAttackDelayMin, currentDifficultySettings.dragonAttackDelayMax), callback: this.triggerDragonAttack, callbackScope: this, loop: true });
+                this.dragonMoveTimer = this.time.addEvent({ delay: Phaser.Math.Between(1500, 2500), callback: this.changeDragonMovement, callbackScope: this, loop: true });
+                this.changeDragonMovement();
+
+                cursors = this.input.keyboard.createCursorKeys();
+                this.input.keyboard.on('keydown-SPACE', this.handlePlayerAttack, this);
+
+                this.physics.add.overlap(player, fireballs, this.handlePlayerHitByFireball, null, this);
+                this.physics.add.overlap(player, dragon, this.handlePlayerDragonCollision, null, this);
+
+                playerHealthText = this.add.text(16, 16, `${playerName} HP: ${playerHealth}`, { fontSize: '10px', fill: '#fff', fontFamily: gameFont });
+                dragonHealthText = this.add.text(this.cameras.main.width - 16, 16, `Dragon HP: ${dragonHealth}`, { fontSize: '10px', fill: '#fff', fontFamily: gameFont }).setOrigin(1, 0);
+                document.getElementById('debug-info').textContent = `Difficulty: ${currentDifficultySettings.name}. Game Started.`;
+            }
+
+            determinePlayerNextAnimation() {
+                if (!player.active || gameIsOver) return;
+                if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) player.play('player_walk', true);
+                else player.play('player_idle', true);
+            }
+            determineDragonNextAnimation() {
+                if (!dragon.active || gameIsOver) return;
+                if (dragon.body.velocity.x !== 0 || dragon.body.velocity.y !== 0) dragon.play('dragon_move', true);
+                else dragon.play('dragon_idle', true);
+            }
+
+            update(time, delta) {
+                if (gameIsOver) return;
+                if (this.background) this.background.tilePositionX += 0.2; // Slow scroll for effect
+
+                if (player && player.active) { this.handlePlayerMovement(); this.updatePlayerAnimation(); }
+                if (dragon && dragon.active) {
+                    if (dragon.y - (dragon.displayHeight * dragon.originY) < this.playableAreaTopY) {
+                        dragon.y = this.playableAreaTopY + (dragon.displayHeight * dragon.originY);
+                        if (dragon.body.velocity.y < 0) dragon.setVelocityY(0);
+                    }
+                    this.updateDragonAnimation();
+                }
+                if (swordHitbox && swordHitbox.active && player && player.active) {
+                    const swordOffsetX = player.flipX ? -(warriorFrameWidth * 0.35) : (warriorFrameWidth * 0.35);
+                    swordHitbox.setPosition(player.x + swordOffsetX, player.y);
+                }
+            }
+            handlePlayerMovement() {
+                if (!player.active || ['player_attack', 'player_hurt', 'player_death'].includes(player.anims.currentAnim.key)) {
+                    player.setVelocity(0); return;
+                }
+                const speed = 180; player.setVelocity(0);
+                if (cursors.left.isDown) { player.setVelocityX(-speed); player.setFlipX(true); }
+                else if (cursors.right.isDown) { player.setVelocityX(speed); player.setFlipX(false); }
+                if (cursors.up.isDown) { player.setVelocityY(-speed); }
+                else if (cursors.down.isDown) { player.setVelocityY(speed); }
+            }
+            updatePlayerAnimation() {
+                if (!player.active || ['player_attack', 'player_hurt', 'player_death'].includes(player.anims.currentAnim.key)) return;
+                if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) {
+                    if (player.anims.currentAnim.key !== 'player_walk') player.play('player_walk', true);
+                } else {
+                    if (player.anims.currentAnim.key !== 'player_idle') player.play('player_idle', true);
+                }
+            }
+            handlePlayerAttack() {
+                if (!player.active || gameIsOver || this.time.now < lastPlayerAttackTime + playerAttackCooldown || player.anims.currentAnim.key === 'player_attack') return;
+                lastPlayerAttackTime = this.time.now;
+                player.play('player_attack', false); player.setVelocity(0);
+                const swordOffsetX = player.flipX ? -(warriorFrameWidth * 0.4) : (warriorFrameWidth * 0.4);
+                swordHitbox = this.add.rectangle(player.x + swordOffsetX, player.y, warriorFrameWidth * 0.7, warriorFrameHeight * 0.5);
+                this.physics.add.existing(swordHitbox, true); swordHitbox.body.enable = true;
+                this.physics.add.overlap(swordHitbox, dragon, this.handleSwordHitDragon, null, this);
+                this.time.delayedCall(playerAttackDuration, () => { if (swordHitbox) { swordHitbox.destroy(); swordHitbox = null; } });
+            }
+            handleSwordHitDragon(hb, drg) {
+                if (hb === swordHitbox && hb.active && drg.active && !gameIsOver) {
+                    dragonHealth -= 30;
+                    dragonHealthText.setText(`Dragon HP: ${Math.max(0, dragonHealth)}`);
+                    drg.play('dragon_hurt', true); drg.setTint(0xff0000);
+                    this.time.delayedCall(150, () => { if (drg.active) drg.clearTint(); });
+                    if (hb) { hb.destroy(); swordHitbox = null; }
+                    if (dragonHealth <= 0) {
+                        drg.play('dragon_death');
+                        drg.once('animationcomplete-dragon_death', () => {
+                            if (drg.active) { drg.setActive(false); drg.setVisible(false); drg.destroy(); }
+                            this.endGame(true);
+                        }, this);
+                    }
+                }
+            }
+            handlePlayerDragonCollision(plyr, drg) {
+                if (!plyr.active || !drg.active || gameIsOver || this.time.now < lastBodyCollisionTime + currentDifficultySettings.dragonBodyDamageCooldown || ['dragon_hurt', 'dragon_death', 'dragon_attack'].includes(drg.anims.currentAnim.key)) return;
+                lastBodyCollisionTime = this.time.now;
+                playerHealth -= currentDifficultySettings.dragonBodyDamage;
+                playerHealthText.setText(`${playerName} HP: ${Math.max(0, playerHealth)}`);
+                plyr.play('player_hurt', true); plyr.setTint(0xff0000);
+                this.time.delayedCall(150, () => { if (plyr.active) plyr.clearTint(); });
+                if (playerHealth <= 0) {
+                    plyr.play('player_death');
+                    plyr.on('animationcomplete-player_death', () => { if (plyr.active) { plyr.setActive(false); plyr.setVisible(false); plyr.destroy(); } });
+                    this.endGame(false);
+                }
+            }
+            triggerDragonAttack() {
+                if (!dragon.active || !player.active || gameIsOver || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
+                dragon.play('dragon_attack', false); dragon.setVelocity(0);
+                if (this.dragonAttackTimer && this.dragonAttackTimer.elapsed > -1) {
+                    this.dragonAttackTimer.delay = Phaser.Math.Between(currentDifficultySettings.dragonAttackDelayMin, currentDifficultySettings.dragonAttackDelayMax);
+                }
+            }
+            changeDragonMovement() {
+                if (!dragon.active || gameIsOver || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
+                const moveType = Phaser.Math.Between(0, 2);
+                const speed = currentDifficultySettings.dragonSpeed;
+                let targetX = (player && player.active) ? player.x : dragon.x;
+                let targetY = (player && player.active) ? player.y : dragon.y;
+                targetY = Math.max(targetY, this.playableAreaTopY + (dragon.displayHeight / 2));
+                targetY = Math.min(targetY, this.cameras.main.height - (dragon.displayHeight / 2));
+                if (player && player.active && player.x < dragon.x) dragon.setFlipX(true);
+                else if (player && player.active) dragon.setFlipX(false);
+                switch (moveType) {
+                    case 0: if (player.active) this.physics.moveTo(dragon, targetX, targetY, speed); else dragon.setVelocity(0); break;
+                    case 1: dragon.setVelocityY(0); if (player.active) dragon.setVelocityX(targetX < dragon.x ? -speed : speed); else dragon.setVelocityX(Phaser.Math.RND.sign() * speed); break;
+                    case 2: dragon.setVelocityX(0); if (player.active) { if (Math.abs(dragon.y - targetY) > 5) dragon.setVelocityY(targetY < dragon.y ? -speed : speed); else dragon.setVelocityY(0); } else dragon.setVelocityY(Phaser.Math.RND.sign() * speed); break;
+                }
+            }
+            updateDragonAnimation() {
+                if (!dragon.active || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
+                if (dragon.body.velocity.x !== 0 || dragon.body.velocity.y !== 0) {
+                    if (dragon.anims.currentAnim.key !== 'dragon_move') dragon.play('dragon_move', true);
+                } else {
+                    if (dragon.anims.currentAnim.key !== 'dragon_idle') dragon.play('dragon_idle', true);
+                }
+            }
+            handlePlayerHitByFireball(plyr, fireball) {
+                if (!plyr.active || !fireball.active || gameIsOver) return;
+                playerHealth -= currentDifficultySettings.dragonFireballDamage;
+                playerHealthText.setText(`${playerName} HP: ${Math.max(0, playerHealth)}`);
+                plyr.play('player_hurt', true); plyr.setTint(0xff0000);
+                this.time.delayedCall(150, () => { if (plyr.active) plyr.clearTint(); });
+                fireball.destroy();
+                if (playerHealth <= 0) {
+                    plyr.play('player_death');
+                    plyr.on('animationcomplete-player_death', () => { if (plyr.active) { plyr.setActive(false); plyr.setVisible(false); plyr.destroy(); } });
+                    this.endGame(false);
+                }
+            }
+
+            endGame(playerWon) {
+                if (gameIsOver) return;
+                gameIsOver = true;
+                stopMusic(); // Stop current music
+
+                if (player && player.active) player.setVelocity(0);
+                if (dragon && dragon.active) dragon.setVelocity(0);
+                if (this.dragonAttackTimer) { this.dragonAttackTimer.destroy(); this.dragonAttackTimer = null; }
+                if (this.dragonMoveTimer) { this.dragonMoveTimer.destroy(); this.dragonMoveTimer = null; }
+
+                if (playerHealthText) playerHealthText.destroy();
+                if (dragonHealthText) dragonHealthText.destroy();
+
+                const existingGameOverText = this.children.getByName('gameOverText'); // Check if one exists
+                if (existingGameOverText) existingGameOverText.destroy();
+
+
+                if (playerWon) {
+                    this.scene.start('EpilogueScene', { playerName: playerName });
+                } else {
+                    gameOverText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2,
+                        `GAME OVER\n${playerName} was defeated.`,
+                        { fontSize: '24px', fill: '#ff0000', fontFamily: gameFont, align: 'center' }
+                    ).setOrigin(0.5).setName('gameOverText');
+                    document.getElementById('instructions').textContent = "Defeated!";
+                    document.getElementById('debug-info').textContent = "";
+                    this.time.delayedCall(1000, () => {
+                        createButton(this, this.cameras.main.width / 2, this.cameras.main.height / 2 + 80, 'Play Again?',
+                            () => { stopMusic(); this.scene.start('TitleScene'); }
+                        );
+                    });
+                }
+            }
+            shutdown() { // Ensure timers are cleared if scene is stopped externally
+                if (this.dragonAttackTimer) { this.dragonAttackTimer.destroy(); this.dragonAttackTimer = null; }
+                if (this.dragonMoveTimer) { this.dragonMoveTimer.destroy(); this.dragonMoveTimer = null; }
+                // Music is handled by the playMusic function stopping the previous one
+            }
+        }
+
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            pixelArt: true,
+            backgroundColor: '#2d2d2d',
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scene: [PreloadScene, TitleScene, NameInputScene, DifficultySelectScene, NarrationScene, GameScene, EpilogueScene]
+        };
+        const game = new Phaser.Game(config);
+    </script>
+</body>
+
+</html>

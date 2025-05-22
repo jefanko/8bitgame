@@ -16,14 +16,17 @@
             background-color: #1a1a1a;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            /* Key change for layout */
+            justify-content: flex-start;
+            /* Align title to top */
             align-items: center;
             width: 100%;
-            /* Full width */
             height: 100%;
-            /* Full height */
             margin: 0;
-            padding: 0;
+            padding: 10px;
+            /* Add some padding to the body */
+            box-sizing: border-box;
+            /* Include padding in width/height */
             color: #f0f0f0;
             overflow: hidden;
         }
@@ -32,23 +35,31 @@
             margin-bottom: 1rem;
             text-align: center;
             width: 100%;
-            /* Ensure title container can be centered */
+            flex-shrink: 0;
+            /* Prevent title from shrinking */
         }
 
         #game-wrapper {
-            /* This will be the parent for Phaser's canvas */
+            width: 100%;
+            /* height: 100%; REMOVED - flex-grow will handle this */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            flex-grow: 1;
+            /* Key change: allow wrapper to take available space */
+            min-height: 0;
+            /* Important for flex-grow in some browsers */
+        }
+
+        #game-container {
+            /* Phaser will inject its canvas here and control its size via Scale Manager */
+            /* Ensure it can expand within the wrapper */
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative;
-            /* For name input overlay */
-        }
-
-        #game-container {
-            /* Phaser will inject its canvas here */
-            /* Phaser's scale manager will handle the size of the canvas within this */
         }
 
         #nameInputContainer {
@@ -157,8 +168,8 @@
     <script>
         // --- Platform Detection & Orientation ---
         const orientationMessageDiv = document.getElementById('orientationMessage');
-        const gameWrapperDiv = document.getElementById('game-wrapper'); // This is now the parent for Phaser
-        const gameContainerDiv = document.getElementById('game-container'); // Phaser injects canvas here
+        const gameWrapperDiv = document.getElementById('game-wrapper');
+        const gameContainerDiv = document.getElementById('game-container');
         const nameInputDiv = document.getElementById('nameInputContainer');
 
         function isMobileDevice() { /* ... same as before ... */
@@ -171,13 +182,13 @@
             if (isMobileDevice()) {
                 if (window.matchMedia("(orientation: portrait)").matches) {
                     orientationMessageDiv.style.display = 'flex';
-                    gameContainerDiv.style.display = 'none'; // Hide game canvas
+                    gameContainerDiv.style.display = 'none';
                     if (nameInputDiv.style.display === 'block') {
                         nameInputDiv.style.display = 'none';
                     }
                 } else {
                     orientationMessageDiv.style.display = 'none';
-                    gameContainerDiv.style.display = 'block'; // Show game canvas
+                    gameContainerDiv.style.display = 'block';
                 }
             } else {
                 orientationMessageDiv.style.display = 'none';
@@ -637,7 +648,6 @@
                 setupButtonEvents(this.touchControls.down, 'isDownDown');
 
                 this.touchControls.attack.on('pointerdown', () => {
-                    // console.log('Touch Attack Pointer Down'); // For debugging
                     this.handlePlayerAttack();
                     this.touchControls.attack.setAlpha(alpha + 0.4);
                 });
@@ -699,7 +709,6 @@
                 }
             }
             handlePlayerAttack() {
-                // console.log('handlePlayerAttack called. Player active:', player.active, 'Game Over:', gameIsOver, 'Cooldown:', this.time.now < lastPlayerAttackTime + playerAttackCooldown, 'Current Anim:', player.anims.currentAnim.key); // Debug
                 if (!player.active || gameIsOver || this.time.now < lastPlayerAttackTime + playerAttackCooldown || player.anims.currentAnim.key === 'player_attack') return;
                 lastPlayerAttackTime = this.time.now;
                 player.play('player_attack', false); player.setVelocity(0);
@@ -709,7 +718,7 @@
                 this.physics.add.overlap(swordHitbox, dragon, this.handleSwordHitDragon, null, this);
                 this.time.delayedCall(playerAttackDuration, () => { if (swordHitbox) { swordHitbox.destroy(); swordHitbox = null; } });
             }
-            handleSwordHitDragon(hb, drg) { /* ... same as before ... */
+            handleSwordHitDragon(hb, drg) {
                 if (hb === swordHitbox && hb.active && drg.active && !gameIsOver) {
                     dragonHealth -= 30;
                     dragonHealthText.setText(`Dragon HP: ${Math.max(0, dragonHealth)}`);
@@ -725,7 +734,7 @@
                     }
                 }
             }
-            handlePlayerDragonCollision(plyr, drg) { /* ... same as before ... */
+            handlePlayerDragonCollision(plyr, drg) {
                 if (!plyr.active || !drg.active || gameIsOver || this.time.now < lastBodyCollisionTime + currentDifficultySettings.dragonBodyDamageCooldown || ['dragon_hurt', 'dragon_death', 'dragon_attack'].includes(drg.anims.currentAnim.key)) return;
                 lastBodyCollisionTime = this.time.now;
                 playerHealth -= currentDifficultySettings.dragonBodyDamage;
@@ -738,14 +747,14 @@
                     this.endGame(false);
                 }
             }
-            triggerDragonAttack() { /* ... same as before ... */
+            triggerDragonAttack() {
                 if (!dragon.active || !player.active || gameIsOver || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
                 dragon.play('dragon_attack', false); dragon.setVelocity(0);
                 if (this.dragonAttackTimer && this.dragonAttackTimer.elapsed > -1) {
                     this.dragonAttackTimer.delay = Phaser.Math.Between(currentDifficultySettings.dragonAttackDelayMin, currentDifficultySettings.dragonAttackDelayMax);
                 }
             }
-            changeDragonMovement() { /* ... same as before ... */
+            changeDragonMovement() {
                 if (!dragon.active || gameIsOver || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
                 const moveType = Phaser.Math.Between(0, 2);
                 const speed = currentDifficultySettings.dragonSpeed;
@@ -761,7 +770,7 @@
                     case 2: dragon.setVelocityX(0); if (player.active) { if (Math.abs(dragon.y - targetY) > 5) dragon.setVelocityY(targetY < dragon.y ? -speed : speed); else dragon.setVelocityY(0); } else dragon.setVelocityY(Phaser.Math.RND.sign() * speed); break;
                 }
             }
-            updateDragonAnimation() { /* ... same as before ... */
+            updateDragonAnimation() {
                 if (!dragon.active || ['dragon_attack', 'dragon_hurt', 'dragon_death'].includes(dragon.anims.currentAnim.key)) return;
                 if (dragon.body.velocity.x !== 0 || dragon.body.velocity.y !== 0) {
                     if (dragon.anims.currentAnim.key !== 'dragon_move') dragon.play('dragon_move', true);
@@ -769,7 +778,7 @@
                     if (dragon.anims.currentAnim.key !== 'dragon_idle') dragon.play('dragon_idle', true);
                 }
             }
-            handlePlayerHitByFireball(plyr, fireball) { /* ... same as before ... */
+            handlePlayerHitByFireball(plyr, fireball) {
                 if (!plyr.active || !fireball.active || gameIsOver) return;
                 playerHealth -= currentDifficultySettings.dragonFireballDamage;
                 playerHealthText.setText(`${playerName} HP: ${Math.max(0, playerHealth)}`);
@@ -783,7 +792,7 @@
                 }
             }
 
-            endGame(playerWon) { /* ... same as before ... */
+            endGame(playerWon) {
                 if (gameIsOver) return;
                 gameIsOver = true;
                 stopMusic();
@@ -826,21 +835,25 @@
                         }
                     });
                     this.touchControls.active = false;
+                    // Reset touch state flags
+                    this.touchControls.isLeftDown = false;
+                    this.touchControls.isRightDown = false;
+                    this.touchControls.isUpDown = false;
+                    this.touchControls.isDownDown = false;
                 }
             }
         }
 
         const config = {
             type: Phaser.AUTO,
-            width: 800, // Design width
-            height: 600, // Design height
-            parent: 'game-container', // Mounts canvas inside this div
+            width: 800,
+            height: 600,
+            parent: 'game-container',
             pixelArt: true,
             backgroundColor: '#2d2d2d',
             scale: {
                 mode: Phaser.Scale.FIT,
                 autoCenter: Phaser.Scale.CENTER_BOTH,
-                parent: 'game-container', // Redundant here but good practice
                 width: 800,
                 height: 600
             },

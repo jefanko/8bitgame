@@ -51,8 +51,8 @@ This game is built using HTML, JavaScript, and the Phaser 3 game framework, feat
 
 1.  **Clone the Repository (if applicable):**
     ```bash
-    git clone [URL_OF_YOUR_GITHUB_REPOSITORY]
-    cd [REPOSITORY_NAME]
+    git clone https://github.com/jefanko/8bitgame/
+    cd 8bitgame
     ```
 2.  **No Build Step Required:** This game is designed to run directly from the `index.html` file.
 3.  **Run with a Local Server:** Due to browser security restrictions (CORS) when loading assets, it's best to run the game using a local web server.

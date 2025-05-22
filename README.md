@@ -49,13 +49,8 @@ This game is built using HTML, JavaScript, and the Phaser 3 game framework, feat
 
 ## Setup and Running Locally
 
-1.  **Clone the Repository (if applicable):**
-    ```bash
-    git clone https://github.com/jefanko/8bitgame/
-    cd 8bitgame
-    ```
-2.  **No Build Step Required:** This game is designed to run directly from the `index.html` file.
-3.  **Run with a Local Server:** Due to browser security restrictions (CORS) when loading assets, it's best to run the game using a local web server.
+1.  **No Build Step Required:** This game is designed to run directly from the `index.html` file.
+2.  **Run with a Local Server:** Due to browser security restrictions (CORS) when loading assets, it's best to run the game using a local web server.
     * **Using VS Code Live Server:** If you have Visual Studio Code and the "Live Server" extension, right-click on `index.html` and select "Open with Live Server."
     * **Using Python's HTTP Server:**
         * Open your terminal or command prompt.
